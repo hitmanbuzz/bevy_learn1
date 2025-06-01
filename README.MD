@@ -17,7 +17,7 @@ This project is a simple shooting game built with [Bevy](https://bevyengine.org/
 
 1. **Clone the repository:**
     ```sh
-    git clone https://github.com/yourusername/bevy_shooter.git
+    git clone https://github.com/hitmanbuzz/bevy_learn1.git
     cd bevy_shooter
     ```
 
