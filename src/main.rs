@@ -22,9 +22,16 @@ struct Ground;
 #[derive(Component)]
 struct Bullet;
 
+/// It states that the object has a filed that supports `shoot`
 #[derive(Resource)]
 struct ShootState {
     is_shoot: bool,
+}
+
+/// It states that the object has a time limit to live
+#[derive(Component)]
+struct Lifetime {
+    timer: Timer,
 }
 
 /// The movement speed of the object that is specfied with this structure in the field
@@ -65,6 +72,8 @@ const GROUND_SIZE: Vec3 = Vec3::new(10.0, 1.0, 15.0);
 const CAMERA_POS: Vec3 = Vec3::new(0.0, 5.0, 18.0);
 /// Constant `f32` for bullet speed
 const BULLET_SPEED: f32 = 500.0;
+/// Constant `f32` that will despawn the bullet after the given value time
+const BULLET_DESPAWN_TIME: f32 = 3.0;
 
 fn main() {
     App::new()
@@ -95,6 +104,7 @@ fn main() {
             customize_config,
             game_setting,
             display_settings,
+            despawn_bullet,
         ))
         .run();
 }
@@ -199,6 +209,8 @@ fn spawn_walls(
 }
 
 /// Move the player with the given keybinds (Only support left and right movement)
+/// 
+/// `A` & `D` are the keybinds to move left and right respectively
 fn move_player(
     key_input: Res<ButtonInput<KeyCode>>,
     timer: Res<Time>,
@@ -221,6 +233,9 @@ fn move_player(
     }
 }
 
+/// The function that shoot bullets from the middle part of the player (cube)
+/// 
+/// It will shoot the bullet when the `spacebar` key is pressed
 fn shoot_bullet(
     key_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
@@ -237,6 +252,9 @@ fn shoot_bullet(
         // Spawn the bullet
         commands.spawn((
             Bullet,
+            Lifetime {
+                timer: Timer::from_seconds(BULLET_DESPAWN_TIME, TimerMode::Once),
+            },
             RigidBody::Kinematic,
             Collider::cuboid(0.2, 0.2, 0.2),
             Mesh3d(meshes.add(Cuboid::new(0.2, 0.2, 0.2))),
@@ -255,6 +273,23 @@ fn shoot_bullet(
     }
 }
 
+/// Despawn/Remove each bullet that has been shooted after 3 seconds
+fn despawn_bullet(
+    mut commands: Commands,
+    timer: Res<Time>,
+    query: Query<(Entity, &mut Lifetime), With<Bullet>>
+) {
+    for (entity, mut lifetime) in query {
+        lifetime.timer.tick(timer.delta());
+        
+        // If the timer reached 3 seconds, it will despawn that specific bullet
+        if lifetime.timer.finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Reset the shoot status flag to true
 fn reset_shoot_flag(
     mut shoot_state: ResMut<ShootState>,
 ) {
@@ -291,7 +326,7 @@ fn display_settings(
             return String::from("OFF");
         }
     })();
-
+    
     println!("Vsync Status: {}", vsync_value);
 }
 
