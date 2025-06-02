@@ -5,11 +5,11 @@ This project is a simple shooting game built with [Bevy](https://bevyengine.org/
 ## Features (Implemented)
 - Player movement (WASD)
 - Basic shooting mechanics (spacebar)
-- Simple enemy spawning
+- Despawn the bullet after a certain given time
 
 ## Features (Planned)
-- Enemy AI and movement
 - Score tracking
+- Enemy AI and movement
 - Sound effects and music
 - Power-ups
 
@@ -23,7 +23,11 @@ This project is a simple shooting game built with [Bevy](https://bevyengine.org/
 
 2. **Run the game:**
     ```sh
-    cargo run
+    [Debug Run]
+    cargo run 
+    
+    [Release Run]
+    cargo run --release
     ```
 
 ## Screenshots
