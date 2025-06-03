@@ -1,7 +1,6 @@
 use avian3d::{math::{Scalar, Vector}, prelude::*};
 use bevy::{
-    prelude::*,
-    text::FontSmoothing, window::{PresentMode, PrimaryWindow},
+    prelude::*, text::FontSmoothing, window::{PresentMode, PrimaryWindow}
 };
 use bevy_dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 
@@ -21,6 +20,10 @@ struct Ground;
 /// It states that the object is `Bullet` if stated in the field
 #[derive(Component)]
 struct Bullet;
+
+/// It statest that the object is `AIBot` if stated in the field
+#[derive(Component)]
+struct AIBot;
 
 /// It states that the object has a filed that supports `shoot`
 #[derive(Resource)]
@@ -75,6 +78,21 @@ const BULLET_SPEED: f32 = 500.0;
 /// Constant `f32` that will despawn the bullet after the given value time
 const BULLET_DESPAWN_TIME: f32 = 3.0;
 
+const WALL_SPAWN_POS: [WallProperties; 3] = [
+        WallProperties {
+            position: Vec3::new(GROUND_SIZE.x / 2.0 + 0.5, 0.0, 0.0),
+            size: Vec3::new(1.0, 6.0, GROUND_SIZE.z),
+        },
+        WallProperties {
+            position: Vec3::new(-GROUND_SIZE.x / 2.0 - 0.5, 0.0, 0.0),
+            size: Vec3::new(1.0, 6.0, GROUND_SIZE.z),
+        },
+        WallProperties {
+            position: Vec3::new(0.0, 0.0, -GROUND_SIZE.z / 2.0 - 0.5),
+            size: Vec3::new(GROUND_SIZE.x, 6.0, 1.0),
+        }
+    ];
+
 fn main() {
     App::new()
         .add_plugins((
@@ -105,6 +123,7 @@ fn main() {
             game_setting,
             display_settings,
             despawn_bullet,
+            despawn_bot.run_if(check_bullet_collision_with_bot)
         ))
         .run();
 }
@@ -161,7 +180,7 @@ fn setup(
     ));
 
     // Spawn a sphere (testing purposes)
-    commands.spawn((
+    /* commands.spawn((
         RigidBody::Dynamic,
         Collider::sphere(0.5),
         Mesh3d(meshes.add(Sphere::default())),
@@ -170,6 +189,21 @@ fn setup(
         LockedAxes::new()
             .lock_translation_y()
             .lock_translation_x()
+    )); */
+    
+    commands.spawn((
+        AIBot,
+        RigidBody::Dynamic,
+        Collider::cuboid(1.0, 1.0, 1.0),
+        Mesh3d(meshes.add(Cuboid::default())),
+        MeshMaterial3d(materials.add(Color::srgb_u8(32, 19, 209))),
+        Transform::from_xyz(0.0, 1.1, (-GROUND_SIZE.z / 2.0) + 0.5),
+        LockedAxes::new()
+            .lock_translation_y()
+            .lock_translation_z()
+            .lock_rotation_x()
+            .lock_rotation_y()
+            .lock_rotation_z()
     ));
 }
 
@@ -181,21 +215,8 @@ fn spawn_walls(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let wall_spawn_pos: [WallProperties; 3] = [
-        WallProperties {
-            position: Vec3::new(GROUND_SIZE.x / 2.0 + 0.5, 0.0, 0.0),
-            size: Vec3::new(1.0, 6.0, GROUND_SIZE.z),
-        },
-        WallProperties {
-            position: Vec3::new(-GROUND_SIZE.x / 2.0 - 0.5, 0.0, 0.0),
-            size: Vec3::new(1.0, 6.0, GROUND_SIZE.z),
-        },
-        WallProperties {
-            position: Vec3::new(0.0, 0.0, -GROUND_SIZE.z / 2.0 - 0.5),
-            size: Vec3::new(GROUND_SIZE.x, 6.0, 1.0),
-        }
-    ];
-
+    let wall_spawn_pos = WALL_SPAWN_POS;
+    
     for i in 0..3 {
         let spawn_prop = &wall_spawn_pos[i];
         commands.spawn((
@@ -270,6 +291,57 @@ fn shoot_bullet(
 
         // Set is_shoot to false
         shoot_state.is_shoot = false;
+    }
+}
+
+/// Calculation to check if the bullet touches the front part of the bot (box)
+/// 
+/// Return `True` if touch, else `False`
+fn check_bullet_collision_with_bot(
+    bullet_query: Query<&Transform, With<Bullet>>,
+    bot_query: Query<&Transform, (With<AIBot>, Without<Bullet>)>, 
+    bullet_entity: Query<Entity, With<Bullet>>,
+    bot_entity: Query<Entity, With<AIBot>>
+) -> bool {
+    let bullet_status = bullet_entity.single();
+    let bot_status = bot_entity.single();
+    
+    if let Ok(_) = bullet_status {
+        if let Ok(_) = bot_status {
+             let bot = bot_query
+                .single()
+                .expect("Couldn't find `AiBot` entity");
+            let bullet = bullet_query
+                .single()
+                .expect("Could't find `Bullet` entity");
+            
+            let bot_trans = bot.translation;
+            let bullet_trans = bullet.translation;
+
+            let is_touched: bool = (|| {
+                let front_z: f32 = bot_trans.z + 0.5;
+                let near_front: bool = (bullet_trans.z - front_z) <= 0.01;
+                let within_x: bool = bullet_trans.x >= (bot_trans.x - 0.5) && bullet_trans.x <= (bot_trans.x + 0.5);
+                let within_y: bool = bullet_trans.y >= (bot_trans.y - 0.5) && bullet_trans.y <= (bot_trans.y + 0.5);
+                
+                return near_front && within_x && within_y; 
+            })();
+
+            return is_touched;           
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+/// Despawn/Remove the bot when the bullet touches the box
+fn despawn_bot(
+    mut commands: Commands,
+    bot_query: Query<Entity, (With<AIBot>, Without<Bullet>)>
+) {
+    for entity in bot_query {
+        commands.entity(entity).despawn();
     }
 }
 
