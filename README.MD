@@ -6,6 +6,7 @@ This project is a simple shooting game built with [Bevy](https://bevyengine.org/
 - Player movement (WASD)
 - Basic shooting mechanics (spacebar)
 - Despawn the bullet after a certain given time
+- Despawn the other Box after the bullet touches it
 
 ## Features (Planned)
 - Score tracking
